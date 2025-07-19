@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>john.Ai</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #f3f4f6, #e0f2fe);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .message {
+            animation: slide-up 0.25s ease-out;
+        }
+
+        @keyframes slide-up {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .blinking-cursor::after {
+            content: ".";
+            animation: blink 1s steps(2, start) infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .markdown-body pre {
+            background-color: #1e293b;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+
+        /* --- MOBILE INPUT FIX --- */
+        @media (max-width: 767px) {
+            .mobile-input-bar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 50;
+                background: rgba(255, 255, 255, 0.95);
+                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+                padding-bottom: env(safe-area-inset-bottom, 0);
+            }
+
+            .main-chat-area {
+                padding-bottom: 80px !important;
+            }
+
+            .mobile-sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.2);
+                z-index: 100;
+            }
+
+            .mobile-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 80vw;
+                max-width: 100vw;
+                background: rgba(255, 255, 255, 0.98);
+                box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
+                z-index: 101;
+                overflow-x: hidden;
+                overflow-y: auto;
+
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+
+            .mobile-sidebar.open {
+                transform: translateX(0);
+            }
+
+
+            .mobile-sidebar-close {
+                position: absolute;
+                top: 12px;
+                right: 16px;
+                font-size: 1.5rem;
+                color: #64748b;
+                cursor: pointer;
+            }
+        }
+
+        html,
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .markdown-body {
+            max-width: 100%;
+            overflow-x: hidden;
+            word-wrap: break-word;
+        }
+
+        pre,
+        code {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1em 0;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid #cbd5e1;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+        }
+
+        #greetingMessage.fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+    </style>
+
+    <script>
+        window.currentChatId = "<%= selectedChat ? selectedChat._id : '' %>";
+    </script>
+</head>
+
+<body class="h-screen text-gray-800 overflow-x-hidden w-full">
+
+    <nav class="w-full bg-white/80 glass p-4 flex justify-between items-center border-b relative z-50"
+        style="background-color: rgb(31, 39, 67);">
+        <div class="flex items-center gap-2">
+            <button id="hamburgerBtn" class="md:hidden mr-2 p-2 rounded hover:bg-indigo-100 focus:outline-none"
+                aria-label="Open sidebar">
+                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <div
+                class="w-10 h-10 rounded-full bg-[#00ffd0] flex items-center justify-center text-black text-xl font-bold">
+                J
+            </div>
+            <span class="text-2xl font-bold tracking-wide" style="color: white;">John.Ai</span>
+        </div>
+
+        <!-- Profile Dropdown -->
+        <div class="relative z-50">
+            <button id="profileBtn" class="w-10 h-10 rounded-full bg-[#00ffd0] text-black font-bold focus:outline-none">
+                J
+            </button>
+            <div id="dropdownMenu" class="absolute right-0 mt-2 w-32 bg-white border rounded shadow-lg hidden z-50">
+                <form action="/logout" method="POST">
+                    <button type="submit"
+                        class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-100">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        const profileBtn = document.getElementById("profileBtn");
+        const dropdownMenu = document.getElementById("dropdownMenu");
+
+        profileBtn.addEventListener("click", () => {
+            dropdownMenu.classList.toggle("hidden");
+        });
+
+        // Close dropdown if clicking outside
+        window.addEventListener("click", function (e) {
+            if (!profileBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.classList.add("hidden");
+            }
+        });
+    </script>
+
+
+
+    <div class="flex h-[calc(100%-64px)]">
+        <aside class="w-72 hidden md:flex flex-col border-r bg-white/80 glass p-4"
+            style="background-color: rgb(31, 39, 67);">
+            <p class="text-sm text-gray-600 mb-4" style="color: white;">Welcome, <%= username %> 👋</p>
+            <a href="/chat"
+                class="bg-indigo-500 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-600 transition mb-4 block text-center">+
+                New Chat</a>
+            <h2 class="text-xs text-gray-500 uppercase mb-2" style="color: white;">Chat History</h2>
+            <ul class="space-y-2 text-sm">
+                <% chats.forEach(chat=> { %>
+                    <li
+                        class="p-2 bg-white rounded-md shadow flex justify-between items-center hover:bg-indigo-50 group">
+                        <a href="/chat/<%= chat._id %>" class="flex-1 truncate">
+                            <%= chat.title %>
+                        </a>
+                        <form action="/chat/delete/<%= chat._id %>" method="POST"
+                            onsubmit="return confirm('Delete this chat?')" class="ml-2 hidden group-hover:block">
+                            <button type="submit" class="text-red-500 hover:text-red-700 text-xs">
+                                🗑️
+                            </button>
+                        </form>
+                    </li>
+                    <% }) %>
+            </ul>
+            <div class="mt-auto text-xs text-gray-400 border-t pt-4">© 2025 John.Ai</div>
+        </aside>
+
+        <main class="flex-1 flex flex-col bg-gradient-to-b from-white/80 to-sky-50 glass min-h-0 relative"
+            style="background-color: rgb(192, 189, 189);">
+            <div id="chat" class="flex-1 overflow-y-auto px-6 py-6 space-y-4 main-chat-area"
+                style="scroll-behavior: smooth;">
+                <% if (!selectedChat || selectedChat.messages.length===0) { %>
+                    <div id="greetingMessage"
+                        class="flex justify-center items-center h-full text-2xl font-semibold text-gray-700 message">
+                        Hi <%= username %>, how can I assist you today?
+                    </div>
+                    <% } %>
+
+                        <% if (selectedChat) { %>
+                            <% selectedChat.messages.forEach(msg=> { %>
+                                <div class="flex <%= msg.role === 'user' ? 'justify-end' : 'justify-start' %> message">
+                                    <% if (msg.role==='user' ) { %>
+                                        <div class="bg-indigo-100 text-gray-800 px-5 py-3 rounded-2xl max-w-lg shadow">
+                                            <span>
+                                                <%= msg.content %>
+                                            </span>
+                                        </div>
+                                        <% } else if (msg.role==='assistant' ) { %>
+                                            <div class="markdown-body assistant-message message">
+                                                <%- marked.parse(msg.content) %>
+                                            </div>
+                                            <% } %>
+                                </div>
+                                <% }) %>
+                                    <% } %>
+            </div>
+
+            <div class="border-t px-6 py-4 bg-white/90 mobile-input-bar md:static md:relative">
+                <form onsubmit="event.preventDefault(); sendMessage();" class="flex items-end gap-3">
+                    <textarea id="userInput" placeholder="Send a message..." rows="1" oninput="autoResize(this)"
+                        class="flex-1 px-4 py-3 rounded-2xl border border-gray-300 shadow-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none resize-none max-h-40 overflow-y-auto"
+                        required></textarea>
+                    <button type="submit"
+                        class="px-5 py-3 bg-indigo-600 text-white rounded-full hover:bg-indigo-500 transition shadow">Send</button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <div id="mobileSidebarOverlay" class="mobile-sidebar-overlay hidden md:hidden" tabindex="-1" aria-modal="true"
+        role="dialog">
+        <div class="mobile-sidebar glass p-4 h-full relative" role="document"
+            style="background-color: rgb(31, 39, 67);">
+            <button class="mobile-sidebar-close" id="closeSidebarBtn" aria-label="Close sidebar">&times;</button>
+            <p class="text-sm text-gray-600 mb-4" style="color: white;">Welcome, <%= username %> 👋</p>
+            <a href="/chat"
+                class="bg-indigo-500 text-white px-4 py-2 rounded-lg shadow hover:bg-indigo-600 transition mb-4 block text-center">+
+                New Chat</a>
+            <h2 class="text-xs text-gray-500 uppercase mb-2" style="color: white;">Chat History</h2>
+            <ul class="space-y-2 text-sm">
+                <% chats.forEach(chat=> { %>
+                    <li
+                        class="p-2 bg-white rounded-md shadow flex justify-between items-center hover:bg-indigo-50 group">
+                        <a href="/chat/<%= chat._id %>" class="flex-1 truncate">
+                            <%= chat.title %>
+                        </a>
+                        <form action="/chat/delete/<%= chat._id %>" method="POST"
+                            onsubmit="return confirm('Delete this chat?')" class="ml-2 hidden group-hover:block">
+                            <button type="submit" class="text-red-500 hover:text-red-700 text-xs">
+                                🗑️
+                            </button>
+                        </form>
+                    </li>
+                    <% }) %>
+            </ul>
+            <div class="mt-auto text-xs text-gray-400 border-t pt-4">© 2025 John.Ai</div>
+        </div>
+    </div>
+
+    <script src="/js/main.js" defer></script>
+</body>
+
+</html>
